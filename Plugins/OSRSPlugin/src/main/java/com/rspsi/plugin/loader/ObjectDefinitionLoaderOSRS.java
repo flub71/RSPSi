@@ -1,9 +1,10 @@
 package com.rspsi.plugin.loader;
 
 import com.jagex.cache.def.RSArea;
-import org.displee.cache.index.archive.Archive;
-import org.displee.cache.index.archive.file.File;
+import com.displee.cache.index.archive.Archive;
+import com.displee.cache.index.archive.file.File;
 
+import java.util.Arrays;
 import java.util.Map;
 
 import com.google.common.collect.Maps;
@@ -15,6 +16,7 @@ import com.jagex.cache.loader.object.ObjectDefinitionLoader;
 import com.jagex.io.Buffer;
 
 import lombok.extern.slf4j.Slf4j;
+import lombok.val;
 
 @Slf4j
 public class ObjectDefinitionLoaderOSRS extends ObjectDefinitionLoader {
@@ -25,8 +27,9 @@ public class ObjectDefinitionLoaderOSRS extends ObjectDefinitionLoader {
 
 	@Override
 	public void init(Archive archive) {
-		count = archive.getHighestId() + 1;
-		for (File file : archive.getFiles()) {
+		val highestId = Arrays.stream(archive.fileIds()).max().getAsInt();
+		count = highestId + 1;
+		for(File file : archive.files()){
 			if (file != null && file.getData() != null) {
 				try {
 					Buffer buffer = new Buffer(file.getData());
@@ -58,7 +61,9 @@ public class ObjectDefinitionLoaderOSRS extends ObjectDefinitionLoader {
 				break;
 			}
 
-			if (opcode == 1) {
+			if (opcode == 2) {
+				definition.setName(buffer.readOSRSString());
+			} else if (opcode == 6) {
 				int count = buffer.readUByte();
 				if (count > 0) {
 					if (definition.getModelIds() == null) {
@@ -66,18 +71,16 @@ public class ObjectDefinitionLoaderOSRS extends ObjectDefinitionLoader {
 						int[] modelIds = new int[count];
 
 						for (int i = 0; i < count; i++) {
-							modelIds[i] = buffer.readUShort();
+							modelIds[i] = buffer.readInt();
 							modelTypes[i] = buffer.readUByte();
 						}
 						definition.setModelIds(modelIds);
 						definition.setModelTypes(modelTypes);
 					} else {
-						buffer.setPosition(buffer.getPosition() + count * 3);
+						buffer.setPosition(buffer.getPosition() + count * 5);
 					}
 				}
-			} else if (opcode == 2) {
-				definition.setName(buffer.readOSRSString());
-			} else if (opcode == 5) {
+			} else if (opcode == 7) {
 				int count = buffer.readUByte();
 				if (count > 0) {
 					if (definition.getModelIds() == null) {
@@ -85,11 +88,11 @@ public class ObjectDefinitionLoaderOSRS extends ObjectDefinitionLoader {
 						int[] modelIds = new int[count];
 
 						for (int i = 0; i < count; i++) {
-							modelIds[i] = buffer.readUShort();
+							modelIds[i] = buffer.readInt();
 						}
 						definition.setModelIds(modelIds);
 					} else {
-						buffer.setPosition(buffer.getPosition() + count * 2);
+						buffer.setPosition(buffer.getPosition() + count * 4);
 					}
 				}
 			} else if (opcode == 14) {
@@ -155,6 +158,8 @@ public class ObjectDefinitionLoaderOSRS extends ObjectDefinitionLoader {
 				definition.setTextureToReplace(replacementTex);
 			} else if (opcode == 60) {
 				//definition.setMinimapFunction(buffer.readUShort());
+			} else if (opcode == 61) {
+				definition.setCategory(buffer.readUShort());
 			} else if (opcode == 62) {
 				definition.setInverted(true);
 			} else if (opcode == 64) {
@@ -214,17 +219,50 @@ public class ObjectDefinitionLoaderOSRS extends ObjectDefinitionLoader {
 				definition.setVarp(varp);
 			} else if (opcode == 78) {//TODO Figure out what these do in OSRS
 				//First short = ambient sound
-				buffer.skip(3);
+				buffer.skip(4);
 			} else if (opcode == 79) {
-				buffer.skip(5);
+				buffer.skip(6);
 				int count = buffer.readUByte();
 				buffer.skip(2 * count);
 			} else if (opcode == 81) {
 				buffer.skip(1);//Clip type?
 			} else if (opcode == 82) {
 				definition.setAreaId(buffer.readUShort());//AreaType
-
-			} else if (opcode == 249) {
+			} else if (opcode == 89) {
+				definition.setRandomizeAnimStart(true);
+			} else if (opcode == 90) {
+				// defer anim start
+			} else if (opcode == 91) {
+                buffer.readUByte();
+            } else if (opcode == 93) {
+                buffer.readUByte();
+                buffer.readUShort();
+                buffer.readUByte();
+                buffer.readUShort();
+            } else if (opcode == 95) {
+                buffer.readUByte();
+            } else if (opcode == 96) {
+                buffer.readUByte();
+			} else if (opcode == 100) {
+				buffer.readUByte();
+				buffer.readUByte();
+				buffer.readOSRSString();
+			} else if (opcode == 101) {
+				buffer.readUByte();
+				buffer.readUShort();
+				buffer.readUShort();
+				buffer.readInt();
+				buffer.readInt();
+				buffer.readOSRSString();
+			} else if (opcode == 102) {
+				buffer.readUByte();
+				buffer.readUShort();
+				buffer.readUShort();
+				buffer.readUShort();
+				buffer.readInt();
+				buffer.readInt();
+				buffer.readOSRSString();
+            } else if (opcode == 249) {
 				int var1 = buffer.readUByte();
 				for (int var2 = 0; var2 < var1; var2++) {
 					boolean b = buffer.readUByte() == 1;
